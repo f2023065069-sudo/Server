@@ -90,6 +90,8 @@ namespace CafeTime.Server.Services
                 return new Response { Success = false, Message = $"Order creation failed: {ex.Message}" };
             }
         }
+
+
         // In OrderService.cs - Add this method
         public static Response GetOrderTotal(int orderId)
         {

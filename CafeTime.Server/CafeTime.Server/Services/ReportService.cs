@@ -1,5 +1,4 @@
-﻿// Services/ReportService.cs
-using CafeTime.Server.Common.DOTs;
+﻿using CafeTime.Server.Common.DOTs;
 using MySql.Data.MySqlClient;
 using System.Text;
 
@@ -7,6 +6,8 @@ namespace CafeTime.Server.Services
 {
     public static class ReportService
     {
+        // ================= DAILY SALES =================
+
         public static Response GetDailySalesReport()
         {
             try
@@ -14,32 +15,31 @@ namespace CafeTime.Server.Services
                 using var connection = DatabaseService.GetConnection();
                 connection.Open();
 
-                string query = @"SELECT 
-                                DATE(BillDate) as SaleDate,
-                                COUNT(*) as TotalBills,
-                                SUM(FinalAmount) as TotalSales,
-                                AVG(FinalAmount) as AverageBill
-                                FROM Bills
-                                WHERE DATE(BillDate) = CURDATE()
-                                GROUP BY DATE(BillDate)";
+                string query = @"
+                    SELECT 
+                        COUNT(*) AS TotalBills,
+                        SUM(FinalAmount) AS TotalSales,
+                        AVG(FinalAmount) AS AverageBill
+                    FROM Bills
+                    WHERE DATE(BillDate) = CURDATE()";
 
                 using var cmd = new MySqlCommand(query, connection);
                 using var reader = cmd.ExecuteReader();
 
                 var report = new StringBuilder();
-                report.AppendLine("=== DAILY SALES REPORT ===");
+                report.AppendLine("===== DAILY SALES REPORT =====");
                 report.AppendLine($"Date: {DateTime.Today:yyyy-MM-dd}");
                 report.AppendLine();
 
-                if (reader.Read())
+                if (reader.Read() && reader["TotalSales"] != DBNull.Value)
                 {
-                    report.AppendLine($"Total Bills: {reader["TotalBills"]}");
-                    report.AppendLine($"Total Sales: ${reader["TotalSales"]:F2}");
-                    report.AppendLine($"Average Bill: ${reader["AverageBill"]:F2}");
+                    report.AppendLine($"Total Bills : {reader["TotalBills"]}");
+                    report.AppendLine($"Total Sales : {reader["TotalSales"]}");
+                    report.AppendLine($"Average Bill: {reader["AverageBill"]}");
                 }
                 else
                 {
-                    report.AppendLine("No sales for today.");
+                    report.AppendLine("No sales today.");
                 }
 
                 return new Response
@@ -51,10 +51,40 @@ namespace CafeTime.Server.Services
             }
             catch (Exception ex)
             {
-                return new Response { Success = false, Message = $"Error: {ex.Message}" };
+                return new Response { Success = false, Message = ex.Message };
             }
         }
 
+        // ================= EXPENSE REPORT =================
+
+        public static Response GetExpenseReport()
+        {
+            try
+            {
+                using var connection = DatabaseService.GetConnection();
+                connection.Open();
+
+                string query = @"SELECT SUM(Amount) FROM Expenses";
+
+                using var cmd = new MySqlCommand(query, connection);
+                var totalExpense = cmd.ExecuteScalar();
+
+                double expense = totalExpense == DBNull.Value ? 0 : Convert.ToDouble(totalExpense);
+
+                return new Response
+                {
+                    Success = true,
+                    Message = "Expense report generated",
+                    Data = $"Total Expenses: {expense}"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new Response { Success = false, Message = ex.Message };
+            }
+        }
+
+        // ================= PROFIT / LOSS =================
         public static Response GetInventoryReport()
         {
             try
@@ -143,6 +173,48 @@ namespace CafeTime.Server.Services
             catch (Exception ex)
             {
                 return new Response { Success = false, Message = $"Error: {ex.Message}" };
+            }
+        }
+        
+
+        public static Response GetProfitLossReport()
+        {
+            try
+            {
+                using var connection = DatabaseService.GetConnection();
+                connection.Open();
+
+                double totalSales = 0;
+                double totalExpenses = 0;
+
+                var salesCmd = new MySqlCommand("SELECT SUM(FinalAmount) FROM Bills", connection);
+                var salesResult = salesCmd.ExecuteScalar();
+                if (salesResult != DBNull.Value)
+                    totalSales = Convert.ToDouble(salesResult);
+
+                var expenseCmd = new MySqlCommand("SELECT SUM(Amount) FROM Expenses", connection);
+                var expenseResult = expenseCmd.ExecuteScalar();
+                if (expenseResult != DBNull.Value)
+                    totalExpenses = Convert.ToDouble(expenseResult);
+
+                double profit = totalSales - totalExpenses;
+
+                string status = profit >= 0 ? "PROFIT" : "LOSS";
+
+                return new Response
+                {
+                    Success = true,
+                    Message = "Profit/Loss calculated",
+                    Data =
+                        $"Total Sales   : {totalSales}\n" +
+                        $"Total Expenses: {totalExpenses}\n" +
+                        $"Result        : {status}\n" +
+                        $"Amount        : {profit}"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new Response { Success = false, Message = ex.Message };
             }
         }
     }

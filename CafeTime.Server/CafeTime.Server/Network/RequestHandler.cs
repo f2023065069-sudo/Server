@@ -37,6 +37,12 @@ namespace CafeTime.Server.Network
                     "INVENTORY_REPORT" => ReportService.GetInventoryReport(),
                     "LOW_STOCK_REPORT" => ReportService.GetLowStockReport(),
 
+
+
+
+
+
+
                     // In RequestHandler.cs - Add these lines to your existing switch statement
                     "ADD_EMPLOYEE" => EmployeeService.AddEmployee(JsonSerializer.Deserialize<User>(request.Data.ToString())),
                     "GET_EMPLOYEES" => EmployeeService.GetEmployees(),
@@ -45,6 +51,7 @@ namespace CafeTime.Server.Network
                     "DELETE_EMPLOYEE" => EmployeeService.DeleteEmployee(GetIntFromData(request.Data)),
                     "RESET_PASSWORD" => EmployeeService.ResetPassword(request.Data.ToString()), // Simple string
 
+                 
                     _ => new Response { Success = false, Message = "Invalid action" }
                 };
             }
